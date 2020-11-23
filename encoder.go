@@ -101,7 +101,6 @@ func (e *textEncoder) encodeArray(value reflect.Value) ([]byte, error) {
 		}
 		tmp, err := e.Encode(value.Index(i).Interface())
 		if err != nil {
-			fmt.Println(err)
 			return nil, err
 		}
 		res = append(res, tmp...)

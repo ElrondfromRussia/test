@@ -402,6 +402,7 @@ func newDataParser(t *TypeDesc, unquote bool, opt *DataParserOptions) (DataParse
 		return &nothingParser{}, nil
 	case "Nullable":
 		if len(t.Args) == 0 {
+			panic("bbbbbbbb")
 			return nil, fmt.Errorf("Nullable should pass original type")
 		}
 		p, err := newDataParser(t.Args[0], unquote, opt)
@@ -464,6 +465,7 @@ func newDataParser(t *TypeDesc, unquote bool, opt *DataParserOptions) (DataParse
 		}
 		subParser, err := newDataParser(t.Args[0], true, opt)
 		if err != nil {
+			panic("aaaaaaaaaaaaa")
 			return nil, fmt.Errorf("failed to create parser for array elements: %v", err)
 		}
 		return &arrayParser{subParser}, nil
