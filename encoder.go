@@ -99,8 +99,9 @@ func (e *textEncoder) encodeArray(value reflect.Value) ([]byte, error) {
 		if i > 0 {
 			res = append(res, ',')
 		}
-		tmp, err := e.Encode(value.Index(i))
+		tmp, err := e.Encode(value.Index(i).Interface())
 		if err != nil {
+			fmt.Println(err)
 			return nil, err
 		}
 		res = append(res, tmp...)
