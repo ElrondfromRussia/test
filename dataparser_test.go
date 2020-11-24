@@ -230,6 +230,12 @@ func TestParseData(t *testing.T) {
 			output:    []uint64{1, 2, 3},
 		},
 		{
+			name:      "array of nullable ints",
+			inputtype: "Array(Nullable(UInt64))",
+			inputdata: "[1,2,3]",
+			output:    []uint64{1, 2, 3},
+		},
+		{
 			name:      "array of dates",
 			inputtype: "Array(Date)",
 			inputdata: "['2018-01-02','0000-00-00']",
@@ -356,6 +362,69 @@ func TestParseData(t *testing.T) {
 				return
 			}
 
+			output, err := parser.Parse(strings.NewReader(tc.inputdata))
+			if tc.failParseData {
+				assert.Error(tt, err)
+				return
+			}
+			if !assert.NoError(tt, err) {
+				return
+			}
+
+			assert.Equal(tt, tc.output, output)
+		})
+	}
+}
+
+func TestParseData2(t *testing.T) {
+	type testCase struct {
+		name          string
+		inputtype     string
+		inputopt      *DataParserOptions
+		inputdata     string
+		output        interface{}
+		failParseDesc bool
+		failNewParser bool
+		failParseData bool
+	}
+
+	testCases := []*testCase{
+		{
+			name:      "array of ints",
+			inputtype: "Array(UInt64)",
+			inputdata: "[1,2,3]",
+			output:    []uint64{1, 2, 3},
+		},
+		{
+			name:      "array of nullable ints",
+			inputtype: "Array(Nullable(UInt64))",
+			inputdata: "[1,2,3]",
+			output:    []uint64{1, 2, 3},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			desc, err := ParseTypeDesc(tc.inputtype)
+			if tc.failParseDesc {
+				assert.Error(tt, err)
+				return
+			}
+			if !assert.NoError(tt, err) {
+				return
+			}
+			t.Log(desc.Name, desc.Args)
+
+			parser, err := newDataParser(desc, false, tc.inputopt)
+			if tc.failNewParser {
+				assert.Error(tt, err)
+				return
+			}
+			if !assert.NoError(tt, err) {
+				return
+			}
+
+			t.Log(parser.Type(), tc.inputdata)
 			output, err := parser.Parse(strings.NewReader(tc.inputdata))
 			if tc.failParseData {
 				assert.Error(tt, err)

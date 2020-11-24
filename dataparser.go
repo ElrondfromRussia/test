@@ -48,10 +48,16 @@ type nullableParser struct {
 }
 
 func (p *nullableParser) Parse(s io.RuneScanner) (driver.Value, error) {
+	fmt.Println("nul parser")
 	// Clickhouse returns `\N` string for `null` in tsv format.
 	// For checking this value we need to check first two runes in `io.RuneScanner`, but we can't reset `io.RuneScanner` after it.
 	// Copy io.RuneScanner to `bytes.Buffer` and use it twice (1st for casting to string and checking to null, 2nd for passing to original parser)
 	d := readRaw(s)
+	//d := s.ReadRune()
+
+	// TODO: think: читаем тут 1,2,3] uint64, пхаем в парсер инта -> теряем ,2,3]
+
+	fmt.Println("raw is:", d, p.DataParser.Type())
 
 	if bytes.Equal(d.Bytes(), []byte(`\N`)) {
 		return nil, nil
@@ -213,27 +219,36 @@ func (p *tupleParser) Parse(s io.RuneScanner) (driver.Value, error) {
 }
 
 func (p *arrayParser) Parse(s io.RuneScanner) (driver.Value, error) {
+	fmt.Println("array parser")
 	r := read(s)
 	if r != '[' {
 		return nil, fmt.Errorf("unexpected character '%c', expected '[' at the beginning of array", r)
 	}
 
 	slice := reflect.MakeSlice(p.Type(), 0, 0)
+
 	for i := 0; ; i++ {
 		r := read(s)
+		fmt.Println("r1 is: ", r)
 		s.UnreadRune()
 		if r == ']' {
 			break
 		}
 
+		fmt.Println("p arg: ", p.arg.Type(), p.Type(), p.arg)
 		v, err := p.arg.Parse(s)
 		if err != nil {
+			//TODO: fix here
+			fmt.Println("hr1:", err)
 			return nil, fmt.Errorf("failed to parse array element: %v", err)
 		}
+		fmt.Println("v is: ", v)
 
 		slice = reflect.Append(slice, reflect.ValueOf(v))
+		fmt.Println("slice is: ", slice)
 
 		r = read(s)
+		fmt.Println("r2 is: ", r)
 		if r != ',' {
 			s.UnreadRune()
 		}
@@ -277,7 +292,9 @@ type floatParser struct {
 }
 
 func (p *intParser) Parse(s io.RuneScanner) (driver.Value, error) {
+	fmt.Println("int parser")
 	repr, err := readNumber(s)
+	fmt.Println("int is:", repr)
 	if err != nil {
 		return nil, err
 	}
@@ -397,12 +414,18 @@ func NewDataParser(t *TypeDesc, opt *DataParserOptions) (DataParser, error) {
 }
 
 func newDataParser(t *TypeDesc, unquote bool, opt *DataParserOptions) (DataParser, error) {
+	if len(t.Args) > 0 {
+		fmt.Println("TNAME:", t.Name, *t.Args[0])
+	} else {
+		fmt.Println("TNAME:", t.Name, t.Args)
+	}
+
 	switch t.Name {
 	case "Nothing":
 		return &nothingParser{}, nil
 	case "Nullable":
+		fmt.Println("has Nullable!")
 		if len(t.Args) == 0 {
-			panic("bbbbbbbb")
 			return nil, fmt.Errorf("Nullable should pass original type")
 		}
 		p, err := newDataParser(t.Args[0], unquote, opt)
@@ -435,6 +458,7 @@ func newDataParser(t *TypeDesc, unquote bool, opt *DataParserOptions) (DataParse
 	case "UInt32":
 		return &intParser{false, 32}, nil
 	case "UInt64":
+		fmt.Println("has UInt64!")
 		return &intParser{false, 64}, nil
 	case "Int8":
 		return &intParser{true, 8}, nil
@@ -460,12 +484,12 @@ func newDataParser(t *TypeDesc, unquote bool, opt *DataParserOptions) (DataParse
 		}
 		return &stringParser{unquote: unquote, length: length}, nil
 	case "Array":
+		fmt.Println("has Array!")
 		if len(t.Args) != 1 {
 			return nil, fmt.Errorf("element type not specified for Array")
 		}
 		subParser, err := newDataParser(t.Args[0], true, opt)
 		if err != nil {
-			panic("aaaaaaaaaaaaa")
 			return nil, fmt.Errorf("failed to create parser for array elements: %v", err)
 		}
 		return &arrayParser{subParser}, nil
