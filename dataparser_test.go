@@ -401,6 +401,12 @@ func TestParseData2(t *testing.T) {
 			inputdata: "[1,2,3]",
 			output:    []uint64{1, 2, 3},
 		},
+		{
+			name:      "array of nullable strings",
+			inputtype: "Array(Nullable(String))",
+			inputdata: "['1','2','3']",
+			output:    []string{"1", "2", "3"},
+		},
 	}
 
 	for _, tc := range testCases {

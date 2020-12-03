@@ -7,6 +7,7 @@ import (
 	"io"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -52,18 +53,51 @@ func (p *nullableParser) Parse(s io.RuneScanner) (driver.Value, error) {
 	// Clickhouse returns `\N` string for `null` in tsv format.
 	// For checking this value we need to check first two runes in `io.RuneScanner`, but we can't reset `io.RuneScanner` after it.
 	// Copy io.RuneScanner to `bytes.Buffer` and use it twice (1st for casting to string and checking to null, 2nd for passing to original parser)
-	d := readRaw(s)
-	//d := s.ReadRune()
+	// TODO: think: в старой версии читаем тут 1,2,3] uint64, пхаем в парсер инта -> теряем ,2,3]
+	var dB *bytes.Buffer
 
-	// TODO: think: читаем тут 1,2,3] uint64, пхаем в парсер инта -> теряем ,2,3]
+	dType := p.DataParser.Type()
+	if strings.Contains(dType.String(), "int") || strings.Contains(dType.String(), "float") {
+		//ok!
+		d, err := readNumber(s)
+		if err != nil {
+			fmt.Println("d null")
+			return nil, nil
+		}
 
-	fmt.Println("raw is:", d, p.DataParser.Type())
+		fmt.Println("raw is:", d, p.DataParser.Type())
 
-	if bytes.Equal(d.Bytes(), []byte(`\N`)) {
-		return nil, nil
+		if bytes.Equal([]byte(d), []byte(`\N`)) {
+			fmt.Println("d null")
+			return nil, nil
+		}
+
+		dB = bytes.NewBufferString(d)
+	} else if strings.Contains(dType.String(), "string") {
+		//d, _ := readString(s, len(p.DataParser.format), p.DataParser.unquote)
+		//
+		//fmt.Println("raw is:", d, p.DataParser.Type())
+		//
+		//if bytes.Equal(d.Bytes(), []byte(`\N`)) {
+		//	fmt.Println("d null")
+		//	return nil, nil
+		//}
+		//
+		//dB = bytes.NewBufferString(d)
+	} else {
+		d := readRaw(s)
+
+		fmt.Println("raw is:", d, p.DataParser.Type())
+
+		if bytes.Equal(d.Bytes(), []byte(`\N`)) {
+			fmt.Println("d null")
+			return nil, nil
+		}
+
+		dB = d
 	}
 
-	return p.DataParser.Parse(d)
+	return p.DataParser.Parse(dB)
 }
 
 func readNumber(s io.RuneScanner) (string, error) {
@@ -229,7 +263,7 @@ func (p *arrayParser) Parse(s io.RuneScanner) (driver.Value, error) {
 
 	for i := 0; ; i++ {
 		r := read(s)
-		fmt.Println("r1 is: ", r)
+		fmt.Println("r1 is: ", string(r))
 		s.UnreadRune()
 		if r == ']' {
 			break
