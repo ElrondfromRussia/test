@@ -321,7 +321,7 @@ func (p *arrayParser) Parse(s io.RuneScanner) (driver.Value, error) {
 		fmt.Println("slice is: ", slice)
 
 		r = read(s)
-		fmt.Println("r2 is: ", r)
+		fmt.Println("r2 is: ", string(r))
 		if r != ',' {
 			s.UnreadRune()
 		}
