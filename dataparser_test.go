@@ -388,44 +388,89 @@ func TestParseDataNewNullableArray(t *testing.T) {
 		failParseData bool
 	}
 
+	losAngeles, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		t.Fatalf("failed to load time zone America/Los_Angeles: %v", err)
+	}
+	//moscow, err := time.LoadLocation("Europe/Moscow")
+	//if err != nil {
+	//	t.Fatalf("failed to load time zone Europe/Moscow: %v", err)
+	//}
+
 	testCases := []*testCase{
 		{
-			name:      "array of ints",
-			inputtype: "Array(UInt64)",
-			inputdata: "[1,2,3]",
-			output:    []uint64{1, 2, 3},
+			name:      "array of dates",
+			inputtype: "Array(Date)",
+			inputdata: "['2018-01-02','0000-00-00']",
+			output: []time.Time{
+				time.Date(2018, 1, 2, 0, 0, 0, 0, time.UTC),
+				{},
+			},
 		},
 		{
-			name:      "array of nullable ints",
-			inputtype: "Array(Nullable(UInt64))",
-			inputdata: "[1,2,3]",
-			output:    []uint64{1, 2, 3},
+			name:      "array of dates",
+			inputtype: "Array(Nullable(Date))",
+			inputdata: "['2018-01-02','0000-00-00']",
+			output: []time.Time{
+				time.Date(2018, 1, 2, 0, 0, 0, 0, time.UTC),
+				{},
+			},
 		},
 		{
-			name:      "empty array of nullable ints",
-			inputtype: "Array(Nullable(UInt64))",
-			inputdata: "[]",
-			output:    []uint64{},
-		},
-		{
-			name:      "array of strings",
-			inputtype: "Array(String)",
-			inputdata: "['133','2']",
-			output:    []string{"133", "2"},
-		},
-		{
-			name:      "array of nullable strings",
-			inputtype: "Array(Nullable(String))",
-			inputdata: `['a\taa\',','255']`,
-			output:    []string{"a\taa',", "255"},
-		},
-		{
-			name:          "array of nullable strings",
-			inputtype:     "Array(Nullable(String))",
-			inputdata:     "['aaa,]",
-			output:        nil,
+			name:          "malformed array(nullable(date))",
+			inputtype:     "Array(Nullable(Date))",
+			inputdata:     "a000-00-00 00:00:00",
+			output:        time.Time{},
 			failParseData: true,
 		},
+		{
+			name:      "with special timezone",
+			inputtype: "Array(Nullable(Date))",
+			inputdata: "['2019-06-29']",
+			inputopt: &DataParserOptions{
+				Location: losAngeles,
+			},
+			output: []time.Time{
+				time.Date(2019, 6, 29, 0, 0, 0, 0, losAngeles),
+			},
+		},
+		//{
+		//	name:      "array of ints",
+		//	inputtype: "Array(UInt64)",
+		//	inputdata: "[1,2,3]",
+		//	output:    []uint64{1, 2, 3},
+		//},
+		//{
+		//	name:      "array of nullable ints",
+		//	inputtype: "Array(Nullable(UInt64))",
+		//	inputdata: "[1,2,3]",
+		//	output:    []uint64{1, 2, 3},
+		//},
+		//{
+		//	name:      "empty array of nullable ints",
+		//	inputtype: "Array(Nullable(UInt64))",
+		//	inputdata: "[]",
+		//	output:    []uint64{},
+		//},
+		//{
+		//	name:      "array of strings",
+		//	inputtype: "Array(String)",
+		//	inputdata: "['133','2']",
+		//	output:    []string{"133", "2"},
+		//},
+		//{
+		//	name:      "array of nullable strings",
+		//	inputtype: "Array(Nullable(String))",
+		//	inputdata: `['a\taa\',','255']`,
+		//	output:    []string{"a\taa',", "255"},
+		//},
+		//{
+		//	name:          "array of nullable strings",
+		//	inputtype:     "Array(Nullable(String))",
+		//	inputdata:     "['aaa,]",
+		//	output:        nil,
+		//	failParseData: true,
+		//},
 	}
 
 	for _, tc := range testCases {
