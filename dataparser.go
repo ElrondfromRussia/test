@@ -7,7 +7,6 @@ import (
 	"io"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -53,48 +52,62 @@ func (p *nullableParser) Parse(s io.RuneScanner) (driver.Value, error) {
 	// Clickhouse returns `\N` string for `null` in tsv format.
 	// For checking this value we need to check first two runes in `io.RuneScanner`, but we can't reset `io.RuneScanner` after it.
 	// Copy io.RuneScanner to `bytes.Buffer` and use it twice (1st for casting to string and checking to null, 2nd for passing to original parser)
-	// TODO: think: в старой версии читаем тут 1,2,3] uint64, пхаем в парсер инта -> теряем ,2,3]
 	var dB *bytes.Buffer
 
 	dType := p.DataParser.Type()
-	if strings.Contains(dType.String(), "int") || strings.Contains(dType.String(), "float") {
-		//ok!
+
+	switch dType {
+	case reflectTypeInt8, reflectTypeInt16, reflectTypeInt32, reflectTypeInt64,
+		reflectTypeUInt8, reflectTypeUInt16, reflectTypeUInt32, reflectTypeUInt64,
+		reflectTypeFloat32, reflectTypeFloat64:
 		d, err := readNumber(s)
 		if err != nil {
-			fmt.Println("d null")
-			return nil, nil
-		}
-
-		fmt.Println("raw is:", d, p.DataParser.Type())
-
-		if bytes.Equal([]byte(d), []byte(`\N`)) {
-			fmt.Println("d null")
 			return nil, nil
 		}
 
 		dB = bytes.NewBufferString(d)
-	} else if strings.Contains(dType.String(), "string") {
-		//d, _ := readString(s, len(p.DataParser.format), p.DataParser.unquote)
-		//
-		//fmt.Println("raw is:", d, p.DataParser.Type())
-		//
-		//if bytes.Equal(d.Bytes(), []byte(`\N`)) {
-		//	fmt.Println("d null")
-		//	return nil, nil
-		//}
-		//
-		//dB = bytes.NewBufferString(d)
-	} else {
-		d := readRaw(s)
+	case reflectTypeString:
+		runes := ""
 
-		fmt.Println("raw is:", d, p.DataParser.Type())
+		iter := 0
+		//not sure about safety ^^
+		for {
+			r, n, err := s.ReadRune()
+			if err != nil {
+				return nil, nil
+			}
 
-		if bytes.Equal(d.Bytes(), []byte(`\N`)) {
-			fmt.Println("d null")
-			return nil, nil
+			fmt.Println("res: ", string(r), ":::", n)
+			runes += string(r)
+
+			//if r == '\\' {
+			//	escaped, err := readEscaped(s)
+			//	if err != nil {
+			//		return "", fmt.Errorf("incorrect escaping in string: %v", err)
+			//	}
+			//	r = escaped
+			//}
+
+			if r == '\'' && iter != 0 {
+				break
+			}
+			iter++
 		}
 
+		dB = bytes.NewBufferString(runes)
+	case reflectTypeTime:
+		d := readRaw(s)
 		dB = d
+	case reflectTypeEmptyStruct:
+		d := readRaw(s)
+		dB = d
+	default:
+		d := readRaw(s)
+		dB = d
+	}
+
+	if bytes.Equal(dB.Bytes(), []byte(`\N`)) {
+		return nil, nil
 	}
 
 	return p.DataParser.Parse(dB)
@@ -272,11 +285,13 @@ func (p *arrayParser) Parse(s io.RuneScanner) (driver.Value, error) {
 		fmt.Println("p arg: ", p.arg.Type(), p.Type(), p.arg)
 		v, err := p.arg.Parse(s)
 		if err != nil {
-			//TODO: fix here
-			fmt.Println("hr1:", err)
-			return nil, fmt.Errorf("failed to parse array element: %v", err)
+			return nil, fmt.Errorf("%v failed to parse array element: %v", v, err)
 		}
 		fmt.Println("v is: ", v)
+		if v == nil {
+			//need check if v is nil: panic otherwise
+			return nil, fmt.Errorf("unexpected nil element")
+		}
 
 		slice = reflect.Append(slice, reflect.ValueOf(v))
 		fmt.Println("slice is: ", slice)

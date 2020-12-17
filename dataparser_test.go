@@ -402,10 +402,29 @@ func TestParseData2(t *testing.T) {
 			output:    []uint64{1, 2, 3},
 		},
 		{
+			name:      "empty array of nullable ints",
+			inputtype: "Array(Nullable(UInt64))",
+			inputdata: "[]",
+			output:    []uint64{},
+		},
+		{
+			name:      "array of strings",
+			inputtype: "Array(String)",
+			inputdata: "['133','2']",
+			output:    []string{"133", "2"},
+		},
+		{
 			name:      "array of nullable strings",
 			inputtype: "Array(Nullable(String))",
-			inputdata: "['1','2','3']",
-			output:    []string{"1", "2", "3"},
+			inputdata: `['aaa\',','255']`,
+			output:    []string{"aaa',", "255"},
+		},
+		{
+			name:      "array of nullable strings",
+			inputtype: "Array(Nullable(String))",
+			inputdata: "['aaa,]",
+			output:    nil,
+			failParseData: true,
 		},
 	}
 
