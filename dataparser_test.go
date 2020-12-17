@@ -376,7 +376,7 @@ func TestParseData(t *testing.T) {
 	}
 }
 
-func TestParseData2(t *testing.T) {
+func TestParseDataNewNullableArray(t *testing.T) {
 	type testCase struct {
 		name          string
 		inputtype     string
@@ -416,14 +416,14 @@ func TestParseData2(t *testing.T) {
 		{
 			name:      "array of nullable strings",
 			inputtype: "Array(Nullable(String))",
-			inputdata: `['aaa\',','255']`,
-			output:    []string{"aaa',", "255"},
+			inputdata: `['a\taa\',','255']`,
+			output:    []string{"a\taa',", "255"},
 		},
 		{
-			name:      "array of nullable strings",
-			inputtype: "Array(Nullable(String))",
-			inputdata: "['aaa,]",
-			output:    nil,
+			name:          "array of nullable strings",
+			inputtype:     "Array(Nullable(String))",
+			inputdata:     "['aaa,]",
+			output:        nil,
 			failParseData: true,
 		},
 	}

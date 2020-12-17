@@ -72,23 +72,27 @@ func (p *nullableParser) Parse(s io.RuneScanner) (driver.Value, error) {
 		iter := 0
 		//not sure about safety ^^
 		for {
-			r, n, err := s.ReadRune()
+			r, _, err := s.ReadRune()
 			if err != nil {
 				return nil, nil
 			}
 
-			fmt.Println("res: ", string(r), ":::", n)
+			isEscaped := false
+			if r == '\\' {
+				escaped, err := readEscaped(s)
+				if err != nil {
+					return "", fmt.Errorf("incorrect escaping in string: %v", err)
+				}
+				isEscaped = true
+				r = escaped
+				if r == '\'' {
+					runes += string('\\')
+				}
+			}
+
 			runes += string(r)
 
-			//if r == '\\' {
-			//	escaped, err := readEscaped(s)
-			//	if err != nil {
-			//		return "", fmt.Errorf("incorrect escaping in string: %v", err)
-			//	}
-			//	r = escaped
-			//}
-
-			if r == '\'' && iter != 0 {
+			if r == '\'' && iter != 0 && !isEscaped {
 				break
 			}
 			iter++
